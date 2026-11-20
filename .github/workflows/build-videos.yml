@@ -27,6 +27,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      # a typing mistake in the programs stops the run here, before the slow installation
+      - name: Programs read correctly
+        run: python -m py_compile build_situacoes.py build_video.py build_music.py build_ads.py
       # build_video.py draws the texts with the runner's own Chrome (Playwright, channel "chrome")
       # and puts everything together with ffmpeg; build_music.py needs numpy and scipy
       - name: Tools
