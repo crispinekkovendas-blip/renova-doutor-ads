@@ -1,0 +1,48 @@
+name: Build the Renova Doutor ads
+
+# Builds the "one situation per ad" pictures (build_micro.py) here on GitHub, because the owner wants
+# nothing run on their PC (2026-11-19: "No, nothing on this PC", then "yes build it on github").
+# The pictures leave as the run's artifact; nothing is committed back.
+#
+#   gh workflow run build-ads.yml
+#   gh workflow run build-ads.yml -f only="1A 4B"
+#   gh run download <run id> -n anuncios-micro -D <folder>
+
+on:
+  workflow_dispatch:
+    inputs:
+      only:
+        description: 'Only these ads, e.g. "1A 4B" (empty = all ten)'
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      # build_ads.shot() runs whatever CHROME names; the runner's Chrome needs --no-sandbox
+      - name: Chrome for the screenshots
+        run: |
+          google-chrome --version
+          printf '#!/bin/sh\nexec google-chrome --no-sandbox "$@"\n' > "$RUNNER_TEMP/chrome.sh"
+          chmod +x "$RUNNER_TEMP/chrome.sh"
+          echo "CHROME=$RUNNER_TEMP/chrome.sh" >> "$GITHUB_ENV"
+      - name: Build
+        env:
+          ONLY: ${{ inputs.only }}
+        run: python3 -X utf8 build_micro.py $ONLY
+      - name: What was built
+        run: file out-micro/*.png sheets/micro.png
+      - uses: actions/upload-artifact@v4
+        with:
+          name: anuncios-micro
+          path: |
+            out-micro/
+            sheets/micro.png
+            micro.html
+            anuncios-micro.csv
+          if-no-files-found: error
