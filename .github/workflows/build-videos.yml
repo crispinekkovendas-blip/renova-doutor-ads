@@ -1,0 +1,54 @@
+name: Build the Renova Doutor videos
+
+# Builds the "one situation per ad" videos (build_situacoes.py) here on GitHub, because the owner
+# wants nothing run on their PC. The clips and the narrations are in video-src/; the finished
+# videos leave as the run's artifact, nothing is committed back.
+#
+#   gh workflow run build-videos.yml
+#   gh workflow run build-videos.yml -f only="2 4"
+#   gh run download <run id> -n videos-situacoes -D <folder>
+
+on:
+  workflow_dispatch:
+    inputs:
+      only:
+        description: 'Only these situations, e.g. "2 4" (empty = every one whose clip is in video-src)'
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      # build_video.py draws the texts with the runner's own Chrome (Playwright, channel "chrome")
+      # and puts everything together with ffmpeg; build_music.py needs numpy and scipy
+      - name: Tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          python -m pip install --quiet playwright numpy scipy
+          google-chrome --version
+          ffmpeg -version | head -1
+      - name: Build
+        env:
+          ONLY: ${{ inputs.only }}
+        run: python -X utf8 build_situacoes.py $ONLY
+      - name: What was built
+        run: |
+          for f in video/*.mp4; do
+            echo "$f: $(ffprobe -v error -show_entries format=duration -of csv=p=0 "$f") s, $(du -h "$f" | cut -f1)"
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: videos-situacoes
+          path: |
+            video/
+            sheets/
+          if-no-files-found: error
